@@ -1,0 +1,4 @@
+hidapi
+Pillow
+certifi
+psutil
