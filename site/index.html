@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>agentmon</title>
+<meta name="description" content="Session status and usage limits of your coding agents on an Ulanzi D200 deck.">
+<style>
+:root{color-scheme:light dark;--bg:#fff;--fg:#1a1a1a;--mut:#666;--ac:#2563eb;--card:#f4f4f5}
+@media (prefers-color-scheme:dark){:root{--bg:#111;--fg:#eee;--mut:#999;--ac:#6ea0ff;--card:#1c1c1e}}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 system-ui,sans-serif}
+main{max-width:760px;margin:0 auto;padding:48px 16px}
+h1{font-size:2.4rem;margin:0 0 8px}
+p.lead{color:var(--mut);font-size:1.15rem;margin:0 0 24px}
+img{width:100%;height:auto;border-radius:12px;margin:8px 0 24px}
+a{color:var(--ac)}
+pre{background:var(--card);border-radius:6px;padding:12px;overflow-x:auto}
+footer{color:var(--mut);font-size:.9rem;margin-top:40px}
+</style>
+</head>
+<body>
+<main>
+<h1>agentmon</h1>
+<p class="lead">Session status and usage limits of your coding agents (Claude Code, Codex, Antigravity) on an Ulanzi D200 deck.</p>
+<img src="preview.webp" alt="agentmon on an Ulanzi D200: session tiles, limit tiles and the wide panel">
+<ul>
+<li>Session tiles with model, branch and context bar; finished sessions blink until pressed</li>
+<li>Wide 458x196 panel with 5-hour and weekly limit bars per agent</li>
+<li>Agents are independent modules: add one file, no dashboard changes</li>
+<li>Windows, Python 3, Ulanzi D200</li>
+</ul>
+<pre>python -m venv .venv
+.venv\Scripts\pip install -r requirements.txt
+.venv\Scripts\python.exe dashboard.py</pre>
+<p><a href="https://github.com/Dont-Do-it-Now/Agentmon">GitHub</a> &middot; MIT License</p>
+<footer>Ulanzi, Claude, Codex and Antigravity are trademarks of their respective owners. agentmon is not affiliated with them.</footer>
+</main>
+</body>
+</html>
