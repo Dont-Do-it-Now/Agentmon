@@ -169,6 +169,8 @@ class Dashboard:
             for k, v in states.items():
                 if self._states.get(k, (None,))[0] != v[0]:
                     print(f"{datetime.now():%H:%M:%S} {v[1]} {v[2]}: {v[0]}", flush=True)
+                    if v[0] == "running":
+                        self.page = 0  # 실행 중 세션은 1페이지 맨 앞에 온다: 다른 페이지를 보고 있으면 놓친다
             self._states = states
             if self.page >= self.total_session_pages:
                 self.page = max(0, self.total_session_pages - 1)
