@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import time
 
-from . import antigravity, claude, codex
+from . import antigravity, claude, codex, cursor
 from .base import AgentSession, Limit, Window, until
 
-MODULES = [claude, codex, antigravity]  # 덱·패널 표시 순서
+MODULES = [claude, codex, antigravity, cursor]  # 덱·패널 표시 순서
 AGENTS = {m.KEY: m for m in MODULES}
 
 AGENT_LABEL = {m.KEY: m.LABEL for m in MODULES}
