@@ -3,7 +3,8 @@
 버튼 배치 (넓은 패널은 항상 에이전트별 한도):
   0~8  : 세션 타일 (페이지당 9개)
   9    : → 다음 세션 페이지 (마지막 페이지에서 누르면 1페이지)
-  10~12: MODULES 앞 3개 에이전트의 한도 타일 (누르면 남은/사용 전환 + 한도 갱신)
+  10~11: 고정 에이전트 2개의 한도 타일 (누르면 남은/사용 전환 + 한도 갱신)
+  12   : AGY / Cursor 한도 타일 순환
 
 실행: python dashboard.py
 """
@@ -19,7 +20,9 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 from d200 import SMALL_BACKGROUND, Button, D200, InputEvent
-from agents import AGENT_COLOR, AGENT_LABEL, AGENTS, MODULES, AgentSession, list_sessions, until
+from agents import (AGENT_COLOR, AGENT_LABEL, AGENTS, MODULES, AgentSession, Limit,
+                    Window, list_sessions, until)
+from agents import herdr as _herdr
 from panel import render_usage_panel_wide
 
 SESSION_SEC = 2   # 세션 상태 갱신 주기
@@ -28,12 +31,15 @@ BRIGHTNESS = 80
 SESSIONS_PER_PAGE = 9
 NEXT_BUTTON = 9
 LIMIT_BUTTONS = (10, 11, 12)
+DYNAMIC_LIMIT_BUTTON = 12
 
 
 # ---- 데이터 수집 ----
 
 def _focus(s: AgentSession) -> None:
     """세션이 속한 앱을 앞으로 가져오고, 가능하면 해당 세션을 연다."""
+    if _herdr.activate(s):
+        return
     mod = AGENTS[s.agent]
     if s.focus_url:
         try:
@@ -64,7 +70,7 @@ def _llm_tile(name: str, color: str, bg: str,
     valid = [b[1] for b in bars if b[1] is not None]
     if main is None and valid:
         main = max(valid) if show_used else min(valid)
-    title = f"{main * 100:.0f}%" if main is not None else "-"
+    title = f"{main * 100:.0f}%" if main is not None else ""
     return Button(
         header=f"{name} {'사용' if show_used else '남음'}", title=title,
         bars=bars if bars else None,
@@ -122,6 +128,7 @@ class Dashboard:
         self.usages: dict = {}        # 에이전트 key → 한도 객체 (없으면 None)
         self.usage_stamp = 0          # 한도 데이터가 바뀔 때마다 증가
         self.show_used = False        # 한도 타일: False=남은 %, True=사용 %
+        self.dynamic_key: str | None = None  # 하단 12번: 사용자가 고른 선택 에이전트
         self.acks: dict[str, float] = {}   # 세션 key → 확인한 시각
         self.baseline = time.time()   # 시작 전에 끝난 세션은 확인한 것으로 본다
         self.blink_on = True
@@ -156,10 +163,41 @@ class Dashboard:
             self.page = (self.page + 1) % self.total_session_pages
             self.render()
         elif ev.index in LIMIT_BUTTONS:
-            # 하단 3칸 공통: 남은 ↔ 사용 표시 전환 + 한도 갱신
-            self.show_used = not self.show_used
+            if ev.index == DYNAMIC_LIMIT_BUTTON:
+                self._cycle_optional()
+            else:
+                self.show_used = not self.show_used
             self.render()
             self.fetch_now.set()
+
+    def _optional_modules(self) -> list:
+        return MODULES[2:]
+
+    def _selected_optional(self):
+        options = self._optional_modules()
+        if not options:
+            return None
+        if self.dynamic_key:
+            return next((m for m in options if m.KEY == self.dynamic_key), options[0])
+        recent = [(m, self._activity_mtime(m)) for m in options]
+        if any(stamp for _, stamp in recent):
+            return max(recent, key=lambda item: item[1])[0]
+        return next((m for m in options if self.usages.get(m.KEY) is not None), options[0])
+
+    @staticmethod
+    def _activity_mtime(module) -> float:
+        try:
+            return float(module.activity_mtime())
+        except (AttributeError, OSError, TypeError, ValueError):
+            return 0.0
+
+    def _cycle_optional(self) -> None:
+        options = self._optional_modules()
+        if not options:
+            return
+        current = self._selected_optional()
+        pos = next((i for i, m in enumerate(options) if m.KEY == current.KEY), -1)
+        self.dynamic_key = options[(pos + 1) % len(options)].KEY
 
     def fetch_sessions(self) -> None:
         try:
@@ -195,14 +233,37 @@ class Dashboard:
 
     def _panel_rows(self) -> list[tuple]:
         """넓은 패널용 (이름, 색, 한도 목록) — 에이전트당 한 줄."""
-        return [(m.SHORT, m.COLOR, u.limits if (u := self.usages.get(m.KEY)) else [])
-                for m in MODULES]
+        modules = list(MODULES[:2])
+        if (m := self._selected_optional()) is not None:
+            modules.append(m)
+        rows = []
+        for m in modules:
+            u = self.usages.get(m.KEY)
+            limits = u.limits if u else []
+            if m is modules[-1] and getattr(u, "login_required", False):
+                limits = [Limit("상태", Window(), 0, alt="↪ 로그인 필요")]
+            elif m is modules[-1] and u is None:
+                if self._activity_mtime(m):
+                    limits = [Limit("상태", Window(), 0, alt="한도 조회")]
+                else:
+                    limits = [Limit("상태", Window(), 0, alt="▶ 실행 필요")]
+            if not limits:
+                limits = [Limit("상태", Window(), 0, alt="▶ 실행 필요")]
+            rows.append((m.SHORT, m.COLOR, limits))
+        return rows
 
     def _limit_buttons(self) -> dict[int, Button]:
-        """하단 3칸: MODULES 앞 3개 에이전트의 한도."""
+        """하단 2칸 고정 + 1칸 선택 에이전트의 한도."""
         body: dict[int, Button] = {}
-        for idx, m in zip(LIMIT_BUTTONS, MODULES):
+        modules = list(MODULES[:2])
+        if (m := self._selected_optional()) is not None:
+            modules.append(m)
+        for idx, m in zip(LIMIT_BUTTONS, modules):
             u = self.usages.get(m.KEY)
+            if idx == DYNAMIC_LIMIT_BUTTON and getattr(u, "login_required", False):
+                body[idx] = Button(header=m.SHORT, title="↪", sub="로그인 필요",
+                                   bg=m.BG, fg="#ffffff", accent=m.COLOR, agent=m.KEY)
+                continue
             bars = [
                 (l.short or l.label,
                  None if l.window.used_percent is None else
@@ -213,9 +274,33 @@ class Dashboard:
             ]
             if bars:
                 ls = _limits(u)
+                known = [l for l in ls if l.window.used_percent is not None]
+                if not known:
+                    body[idx] = Button(header=m.SHORT, sub="한도 조회", status_icon="quota",
+                                       bg=m.BG, fg="#ffffff", accent=m.COLOR,
+                                       agent=m.KEY)
+                    continue
+                if len(known) != len(ls):
+                    ls = known
+                    bars = [
+                        (l.short or l.label,
+                         (l.window.used_percent if self.show_used else 100 - l.window.used_percent) / 100,
+                         m.COLOR,
+                         until(l.window.resets_at))
+                        for l in ls
+                    ]
                 longest = max(range(len(ls)), key=lambda i: ls[i].hours)
                 body[idx] = _llm_tile(m.SHORT, m.COLOR, m.BG, bars, agent=m.KEY,
                                       show_used=self.show_used, main=bars[longest][1])
+            elif u is None and idx == DYNAMIC_LIMIT_BUTTON:
+                recent = bool(self._activity_mtime(m))
+                if recent:
+                    body[idx] = Button(header=m.SHORT, sub="한도 조회", status_icon="quota",
+                                       bg=m.BG, fg="#ffffff", accent=m.COLOR,
+                                       agent=m.KEY)
+                else:
+                    body[idx] = Button(header=m.SHORT, title="▶", sub="실행 필요",
+                                       bg=m.BG, fg="#ffffff", accent=m.COLOR, agent=m.KEY)
             elif u is None:
                 body[idx] = Button(header=m.SHORT, title="○", sub="꺼짐",
                                    bg=m.BG, fg="#565f89", accent=m.COLOR, agent=m.KEY)
@@ -230,6 +315,7 @@ class Dashboard:
         visible = self.sessions[offset: offset + SESSIONS_PER_PAGE]
 
         sig = ("sessions", self.page, self.total_session_pages, self.usage_stamp, self.show_used,
+               self._selected_optional().KEY if self._selected_optional() else None,
                tuple((s.key, s.state, s.seen, s.project, s.title, s.model,
                       None if s.context is None else round(s.context, 2),
                       "" if s.is_running or s.is_waiting else s.age_text) for s in visible))
