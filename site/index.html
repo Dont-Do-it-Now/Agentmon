@@ -64,6 +64,7 @@ footer p{margin:0 0 8px}
     <nav>
       <a href="#features">Features</a>
       <a href="#install">Install</a>
+      <a href="https://github.com/Dont-Do-it-Now/Agentmon/releases">Releases</a>
       <a href="https://github.com/Dont-Do-it-Now/Agentmon">GitHub</a>
     </nav>
   </div>
@@ -72,9 +73,9 @@ footer p{margin:0 0 8px}
 <main class="wrap">
   <div class="hero">
     <h1>Your coding agents,<br>on a deck.</h1>
-    <p class="lead">agentmon shows the session status and usage limits of Claude Code, Codex and Antigravity on an Ulanzi D200.</p>
-    <div class="tags"><span class="tag">Windows</span><span class="tag">Python 3</span><span class="tag">Ulanzi D200</span><span class="tag">MIT</span></div>
-    <a class="cta" href="https://github.com/Dont-Do-it-Now/Agentmon">View on GitHub</a>
+    <p class="lead">agentmon shows the session status and usage limits of Claude Code, Codex, Antigravity and Cursor on an Ulanzi D200.</p>
+    <div class="tags"><span class="tag">Windows</span><span class="tag">Python 3</span><span class="tag">Ulanzi D200</span><span class="tag">MIT</span><span class="tag">v0.2.0</span></div>
+    <a class="cta" href="https://github.com/Dont-Do-it-Now/Agentmon/releases/latest">Download v0.2.0</a>
     <a class="sub" href="https://github.com/Dont-Do-it-Now/Agentmon/blob/main/README.ko.md">한국어 안내</a>
   </div>
 
@@ -82,12 +83,22 @@ footer p{margin:0 0 8px}
     <img src="preview.webp" alt="agentmon on an Ulanzi D200: session tiles, limit tiles and the wide panel">
   </div>
 
+  <section id="whatsnew">
+    <h2>What's new in v0.2.0</h2>
+    <div class="grid">
+      <div class="card"><h3>Cursor agent</h3><p>Reads Cursor transcript files for session detection and focus, the same as other agents.</p></div>
+      <div class="card"><h3>Herdr integration</h3><p>Running agents inside Herdr? Pressing a session tile switches Herdr to that terminal's tab. Falls back to the app's deep link when Herdr is off.</p></div>
+      <div class="card"><h3>Dynamic bottom tile</h3><p>Button 12 cycles through Antigravity, Cursor and future agents. Auto-selects by most-recent activity; press to cycle manually.</p></div>
+      <div class="card"><h3>Agent icons &amp; status</h3><p>Each limit tile shows the agent's logo. Quota-loading and login-required states now have dedicated icons.</p></div>
+    </div>
+  </section>
+
   <section id="features">
     <h2>Features</h2>
     <div class="grid">
       <div class="card"><h3>Session tiles</h3><p>Nine per page, filled with each agent's color. Model, branch and a context bar at a glance.</p></div>
       <div class="card"><h3>Never miss a finish</h3><p>Finished or unread sessions blink until you press them. Pressing opens that session.</p></div>
-      <div class="card"><h3>Limits in view</h3><p>The 458x196 panel shows one row per agent with 5-hour and weekly limit bars.</p></div>
+      <div class="card"><h3>Limits in view</h3><p>The 458×196 panel shows one row per agent with 5-hour and weekly limit bars.</p></div>
       <div class="card"><h3>One file per agent</h3><p>Each agent is an independent module. Adding one never touches the dashboard code.</p></div>
     </div>
   </section>
@@ -97,9 +108,10 @@ footer p{margin:0 0 8px}
     <table>
       <thead><tr><th>Button</th><th>Action</th></tr></thead>
       <tbody>
-        <tr><td>Session tiles (0–8)</td><td>Mark as seen and open that session</td></tr>
+        <tr><td>Session tiles (0–8)</td><td>Mark as seen and open that session (switches Herdr tab when Herdr is running)</td></tr>
         <tr><td>Next (9)</td><td>Next session page; from the last page back to page 1</td></tr>
-        <tr><td>Bottom tiles (10–12)</td><td>Per-agent limits (5H and weekly). Press any to switch remaining / used % and refresh</td></tr>
+        <tr><td>Bottom tiles (10–11)</td><td>Fixed agent limits (5H and weekly). Press to switch remaining / used % and refresh</td></tr>
+        <tr><td>Bottom tile (12)</td><td>Cycles through remaining agents (Antigravity, Cursor…) with the same toggle</td></tr>
       </tbody>
     </table>
   </section>
@@ -126,7 +138,7 @@ footer p{margin:0 0 8px}
 <footer>
   <div class="wrap">
     <p><a href="https://github.com/Dont-Do-it-Now/Agentmon">GitHub</a> · <a href="https://github.com/Dont-Do-it-Now/Agentmon/blob/main/LICENSE">MIT License</a></p>
-    <p>Ulanzi, Claude, Codex and Antigravity are trademarks of their respective owners. agentmon is not affiliated with or endorsed by them.</p>
+    <p>Ulanzi, Claude, Codex, Antigravity, Cursor and Herdr are trademarks of their respective owners. agentmon is not affiliated with or endorsed by them.</p>
   </div>
 </footer>
 </body>
