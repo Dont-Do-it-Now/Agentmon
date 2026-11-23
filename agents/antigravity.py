@@ -30,6 +30,10 @@ BG = "#0a0f1e"
 APP_TITLE = "Antigravity"
 
 _HUB_GLOB = f"{HOME}/.gemini/antigravity/daemon/hub_*.json"
+_ACTIVITY_GLOBS = (
+    f"{HOME}/.gemini/antigravity/conversations/*.db",
+    f"{HOME}/.gemini/antigravity/brain/*/.system_generated/tasks/*.log",
+)
 _SERVICE = "exa.language_server_pb.LanguageServerService"
 _DEVTOOLS_PORT = f"{HOME}/AppData/Roaming/Antigravity/DevToolsActivePort"
 
@@ -66,6 +70,12 @@ def ls_call(method: str, body: dict | None = None, timeout: float = 4) -> dict |
             return json.loads(r.read())
     except Exception:
         return None
+
+
+def activity_mtime() -> float:
+    """GUI/CLI 구분 없이 최근 Antigravity 대화·작업 로그의 시각."""
+    paths = (f for pattern in _ACTIVITY_GLOBS for f in glob.glob(pattern))
+    return max((os.path.getmtime(f) for f in paths), default=0.0)
 
 
 # ---- 세션 ----
@@ -194,6 +204,7 @@ class AgyUsage:
     """창별 한도. 모델군(Gemini / Claude·GPT) 중 가장 빠듯한 값."""
     five_hour: Window = field(default_factory=Window)
     weekly: Window = field(default_factory=Window)
+    login_required: bool = False
 
     @property
     def limits(self) -> list[Limit]:
@@ -204,6 +215,12 @@ class AgyUsage:
 def usage() -> AgyUsage | None:
     """RetrieveUserQuotaSummary 의 모델군별 5h / weekly 버킷. Antigravity 가 꺼져 있으면 None.
     (GetUserStatus 의 quotaInfo 는 5시간 한도만 준다)"""
+    try:
+        creds = json.load(open(f"{HOME}/.gemini/oauth_creds.json", encoding="utf-8"))
+        if not (creds.get("access_token") or creds.get("refresh_token")):
+            return AgyUsage(login_required=True)
+    except (OSError, ValueError, TypeError):
+        return AgyUsage(login_required=True)
     d = ls_call("RetrieveUserQuotaSummary", {"metadata": {"ideName": "antigravity",
                                                           "extensionName": "antigravity"}})
     if not d:
