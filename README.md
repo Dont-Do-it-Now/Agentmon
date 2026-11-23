@@ -8,7 +8,7 @@
 
 <p align="center">
   Show the session status and usage limits of your coding agents<br>
-  (Claude Code, Codex, Antigravity) on an Ulanzi D200 deck.
+  (Claude Code, Codex, Antigravity, Cursor) on an Ulanzi D200 deck.
 </p>
 
 <p align="center">
@@ -23,8 +23,9 @@
 
 - Session tiles (9 per page) filled with the agent's color, with model, branch and a context bar
 - Finished or unread sessions blink until you press them; pressing a tile opens that session
+- When running inside **Herdr**, pressing a tile switches Herdr to that terminal's tab; falls back to the app's deep link when Herdr is not running
 - Wide 458x196 panel with one row per agent and two limit bars (5-hour and weekly)
-- Bottom tiles show each agent's limit; press one to switch remaining / used % and refresh
+- Bottom tiles: first two slots are fixed agents; the third cycles through the remaining agents (Antigravity, Cursor…) automatically by most-recent activity, or manually by pressing it
 - Agents are independent modules, so adding one touches no dashboard code
 - Reads only local files and local apps; limits come from each agent's own service
 
@@ -33,7 +34,7 @@
 - Windows
 - Ulanzi D200 (connected over USB)
 - Python 3 (`hidapi`, `Pillow`, `certifi`, `psutil`; see `requirements.txt`)
-- At least one supported agent installed: Claude Code, Codex, or Antigravity
+- At least one supported agent installed: Claude Code, Codex, Antigravity, or Cursor
 
 ## Install and run
 
@@ -54,9 +55,10 @@ To restart: end the python process whose command line contains `dashboard.py`, t
 
 | Button               | Action                                                                                  |
 | -------------------- | --------------------------------------------------------------------------------------- |
-| Session tiles (0-8)  | Mark as seen and open that session                                                      |
+| Session tiles (0-8)  | Mark as seen and open that session (or switch Herdr to that terminal's tab)             |
 | Next (9)             | Next session page; from the last page back to page 1                                    |
-| Bottom tiles (10-12) | Per-agent limits (5H and weekly bars). Press any to switch remaining / used % and refresh |
+| Bottom tiles (10-11) | Fixed agent limits (5H and weekly bars). Press to switch remaining / used % and refresh |
+| Bottom tile (12)     | Cycles through remaining agents (Antigravity, Cursor…) with the same toggle             |
 
 ## Adding an agent
 
@@ -66,7 +68,7 @@ To restart: end the python process whose command line contains `dashboard.py`, t
 4. Optionally add `focus(session)` when a deep link alone cannot open the session.
 5. Add the module to `MODULES` in `agents/__init__.py`. Its order is the display order.
 
-`dashboard.py` and `panel.py` stay untouched, except that only the first three modules fit the bottom limit tiles.
+`dashboard.py` and `panel.py` stay untouched. The first two modules occupy the fixed bottom tiles; modules from index 2 onward share the third tile and cycle on press.
 See [AGENTS.md](AGENTS.md) for details.
 
 ## Notes
@@ -81,4 +83,4 @@ MIT License. See [LICENSE](LICENSE); a Korean reference translation is in [LICEN
 
 ---
 
-Ulanzi, Claude, Codex and Antigravity are trademarks of their respective owners. agentmon is not affiliated with or endorsed by them.
+Ulanzi, Claude, Codex, Antigravity, Cursor and Herdr are trademarks of their respective owners. agentmon is not affiliated with or endorsed by them.
