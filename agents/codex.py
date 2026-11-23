@@ -110,7 +110,7 @@ def sessions() -> list[AgentSession]:
                 out.append(AgentSession(
                     KEY, tid, project_name(cwd) if cwd else tid[:8], ts,
                     state=state, focus_url=f"codex://threads/{tid}",
-                    title=name or "", model=(model or "").replace("gpt", "GPT"),
+                    title=name or "", cwd=cwd or "", model=(model or "").replace("gpt", "GPT"),
                     branch=branch or "", context=_context(rollout) if rollout else None,
                     seen=state == "done" and tid in read,
                 ))

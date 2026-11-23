@@ -124,6 +124,7 @@ def sessions() -> list[AgentSession]:
                 model=model, branch=branch, context=ctx,
                 state="running" if running else "done",
                 title=d.get("name") or "",
+                cwd=d["cwd"], pid=int(d["pid"]),
                 focus_url=f"claude://code/continue?session={host}" if host.startswith("local_") else None,
                 # 띄우기만 하고 아직 작업한 적 없는 세션은 알릴 게 없다
                 seen=not running and (ts - started < 5 or _app_viewed(host)),

@@ -52,6 +52,8 @@ class AgentSession:
     model: str = ""           # 표시용 모델 이름
     branch: str = ""          # git 브랜치
     context: float | None = None  # 컨텍스트 사용률 0~1 (모르면 None)
+    cwd: str = ""             # 작업 폴더 전체 경로 (herdr 터미널 매칭용)
+    pid: int = 0              # 에이전트 프로세스 pid (알면)
 
     @property
     def key(self) -> str:
