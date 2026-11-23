@@ -49,13 +49,20 @@ _ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets")
 
 def _load_agent_icon(agent: str, size: int) -> Image.Image | None:
     """assets/<agent>.png 를 로드해 size x size RGBA로 반환. 없으면 None."""
-    path = os.path.join(_ASSETS_DIR, f"{agent}.png")
-    if not os.path.exists(path):
-        return None
-    try:
-        return Image.open(path).convert("RGBA").resize((size, size), Image.LANCZOS)
-    except Exception:
-        return None
+    paths = [os.path.join(_ASSETS_DIR, f"{agent}.png")]
+    if agent == "cursor":
+        for product in ("cursor", "Cursor"):
+            paths.append(os.path.join(
+                os.environ.get("LOCALAPPDATA", ""), "Programs", product,
+                "resources", "app", "out", "media", "logo.png"))
+    for path in paths:
+        if not os.path.exists(path):
+            continue
+        try:
+            return Image.open(path).convert("RGBA").resize((size, size), Image.LANCZOS)
+        except Exception:
+            continue
+    return None
 
 
 
@@ -91,6 +98,7 @@ class Button:
     muted: str = "#a9b1d6"    # 세션 타일: 보조 글자색
     track: str = "#3a3a4a"    # 세션 타일: 컨텍스트 바 바탕색
     agent: str = ""           # 한도 타일: 에이전트 로고 아이콘 ("claude"|"codex"|"agy")
+    status_icon: str = ""     # 상태 타일용 직접 그린 아이콘 ("quota" 등)
 
 
 def _draw_agent_icon(d: ImageDraw.ImageDraw, agent: str, cx: float, cy: float, r: float, color: str) -> None:
@@ -128,6 +136,18 @@ def _draw_agent_icon(d: ImageDraw.ImageDraw, agent: str, cx: float, cy: float, r
             (cx - r * 0.6, cy), (cx - r * 0.28, cy - r * 0.28),
         ]
         d.polygon(pts_outer, fill=color)
+
+
+def _draw_status_icon(d: ImageDraw.ImageDraw, status: str,
+                      cx: float, cy: float, color: str) -> None:
+    """폰트 글리프에 의존하지 않는 상태 아이콘."""
+    if status != "quota":
+        return
+    # 돋보기 안에 3단계 막대를 넣어 '한도 조회'를 표현한다.
+    d.ellipse((cx - 24, cy - 24, cx + 18, cy + 18), outline=color, width=5)
+    d.line((cx + 14, cy + 14, cx + 34, cy + 34), fill=color, width=6)
+    for x, h in ((cx - 12, 12), (cx - 2, 22), (cx + 8, 31)):
+        d.rounded_rectangle((x, cy + 10 - h, x + 6, cy + 10), 2, fill=color)
 
 
 def _fit(d: ImageDraw.ImageDraw, text: str, size: int, max_w: int,
@@ -243,8 +263,25 @@ def render_icon(btn: Button) -> bytes:
         return buf.getvalue()
     big = ImageFont.truetype(FONT_PATH, 52 if len(btn.title) <= 5 else 34)
     small = ImageFont.truetype(FONT_PATH, 24)
+    if btn.agent:
+        icon_size, ix, iy = 54, 10, 8
+        icon_img = _load_agent_icon(btn.agent, icon_size)
+        if icon_img is not None:
+            d._image.paste(icon_img, (ix, iy), mask=icon_img.split()[3])  # type: ignore[attr-defined]
+        else:
+            _draw_agent_icon(d, btn.agent, ix + icon_size // 2, iy + icon_size // 2,
+                             icon_size // 2, btn.accent or btn.fg)
     if btn.header:
-        d.text((ICON / 2, 26), btn.header, font=_fit(d, btn.header, 22, ICON - 20), fill=btn.header_fg or btn.accent or btn.fg, anchor="mm")
+        x = ICON / 2 if not btn.agent else 142
+        d.text((x, 26), btn.header, font=_fit(d, btn.header, 22, ICON - 20), fill=btn.header_fg or btn.accent or btn.fg, anchor="mm")
+    if btn.status_icon:
+        _draw_status_icon(d, btn.status_icon, ICON / 2, 90, btn.accent or btn.fg)
+        if btn.sub:
+            d.text((ICON / 2, 148), btn.sub, font=_fit(d, btn.sub, small.size, ICON - 14),
+                   fill="#a9b1d6", anchor="mm")
+        buf = io.BytesIO()
+        img.save(buf, "PNG")
+        return buf.getvalue()
     d.text((ICON / 2, 84), btn.title, font=_fit(d, btn.title, big.size, ICON - 16), fill=btn.fg, anchor="mm")
     if btn.sub:
         d.text((ICON / 2, 134), btn.sub, font=_fit(d, btn.sub, small.size, ICON - 14), fill="#a9b1d6" if btn.fg == "#ffffff" else btn.fg, anchor="mm")

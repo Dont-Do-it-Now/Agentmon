@@ -56,6 +56,13 @@ def _until_ko(dt: datetime | None) -> str:
     return f"{h}시간 {m}분 뒤 초기화" if h else f"{m}분 뒤 초기화"
 
 
+def _draw_quota_icon(d: ImageDraw.ImageDraw, cx: int, cy: int, color: str) -> None:
+    d.ellipse((cx - 20, cy - 20, cx + 15, cy + 15), outline=color, width=4)
+    d.line((cx + 12, cy + 12, cx + 29, cy + 29), fill=color, width=5)
+    for x, h in ((cx - 10, 10), (cx - 1, 18), (cx + 8, 26)):
+        d.rounded_rectangle((x, cy + 8 - h, x + 5, cy + 8), 2, fill=color)
+
+
 def render_usage_panel_wide(rows: list[tuple]) -> bytes:
     """사용량 대시보드 넓은 패널 (458x196) — 에이전트당 한 줄, 가장 짧은 창(5H)만 크게.
 
@@ -80,8 +87,14 @@ def render_usage_panel_wide(rows: list[tuple]) -> bytes:
         known = [l for l in limits if l.window.used_percent is not None]
         lim = min(known, key=lambda l: l.hours) if known else None
         if lim is None:
-            alt = next((l.alt for l in limits if l.alt), "") or "-"
-            d.text((NW + 6, cy), alt, font=_f(20, bold=True), fill="#565f89", anchor="lm")
+            alt = next((l.alt for l in limits if l.alt), "") or "▶ 실행 필요"
+            if alt == "한도 조회":
+                _draw_quota_icon(d, W // 2 - 58, cy, color)
+                d.text((W // 2 - 18, cy), alt, font=_f(20, bold=True), fill="#c0caf5", anchor="lm")
+            elif alt.startswith("↪"):
+                d.text((W // 2, cy), alt, font=_f(20, bold=True), fill="#c0caf5", anchor="mm")
+            else:
+                d.text((NW + 6, cy), alt, font=_f(20, bold=True), fill="#565f89", anchor="lm")
             continue
         left = 100 - lim.window.used_percent
         d.text((NW + 4, cy), f"{left:.0f}%", font=_f(34, bold=True), fill="#ffffff", anchor="lm")
