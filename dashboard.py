@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import signal
 import subprocess
@@ -32,6 +33,30 @@ SESSIONS_PER_PAGE = 9
 NEXT_BUTTON = 9
 LIMIT_BUTTONS = (10, 11, 12)
 DYNAMIC_LIMIT_BUTTON = 12
+# 확인 기록(acks)·처음 실행 시각(baseline). 재시작해도 미확인 알림이 사라지지 않게 저장한다.
+STATE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs", "state.json")
+ACK_KEEP_SEC = 2 * 86400
+
+
+def _load_state() -> tuple[dict[str, float], float]:
+    try:
+        d = json.load(open(STATE_PATH, encoding="utf-8"))
+        return {k: float(v) for k, v in d.get("acks", {}).items()}, float(d["baseline"])
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return {}, time.time()
+
+
+def _save_state(acks: dict[str, float], baseline: float) -> None:
+    now = time.time()
+    acks = {k: v for k, v in acks.items() if now - v < ACK_KEEP_SEC}
+    try:
+        os.makedirs(os.path.dirname(STATE_PATH), exist_ok=True)
+        tmp = STATE_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump({"acks": acks, "baseline": baseline}, f)
+        os.replace(tmp, STATE_PATH)
+    except OSError as e:
+        print(f"{datetime.now():%H:%M:%S} state save error: {e}", flush=True)
 
 
 # ---- 데이터 수집 ----
@@ -129,8 +154,9 @@ class Dashboard:
         self.usage_stamp = 0          # 한도 데이터가 바뀔 때마다 증가
         self.show_used = False        # 한도 타일: False=남은 %, True=사용 %
         self.dynamic_key: str | None = None  # 하단 12번: 사용자가 고른 선택 에이전트
-        self.acks: dict[str, float] = {}   # 세션 key → 확인한 시각
-        self.baseline = time.time()   # 시작 전에 끝난 세션은 확인한 것으로 본다
+        # acks: 세션 key → 확인한 시각. baseline: 처음 실행 전에 끝난 세션은 확인한 것으로 본다
+        self.acks, self.baseline = _load_state()
+        _save_state(self.acks, self.baseline)
         self.blink_on = True
         self._states: dict[str, tuple] = {}
         self._sig: tuple | None = None  # 마지막 전체 렌더 내용
@@ -156,6 +182,7 @@ class Dashboard:
             if i < len(self.sessions):
                 s = self.sessions[i]
                 self.acks[s.key] = time.time()
+                _save_state(self.acks, self.baseline)
                 s.seen = True
                 _focus(s)
                 self.render()

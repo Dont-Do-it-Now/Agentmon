@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 
 from . import antigravity, claude, codex, cursor
+from . import herdr as _herdr
 from .base import AgentSession, Limit, Window, until
 
 MODULES = [claude, codex, antigravity, cursor]  # 덱·패널 표시 순서
@@ -26,23 +27,34 @@ def list_sessions(acks: dict[str, float] | None = None, baseline: float = 0.0,
     """
     acks = acks or {}
     now = time.time()
-    out = []
-    latest: dict[str, AgentSession] = {}  # 에이전트별 가장 최근 세션
+    found: list[AgentSession] = []
     for m in MODULES:
         try:
-            found = m.sessions()
+            found += m.sessions()
         except Exception as e:
             print(f"{time.strftime('%H:%M:%S')} {m.KEY} session error: {e}", flush=True)
+
+    # herdr 안의 세션은 herdr 의 읽음 표시를 따른다 (unread = herdr 화면의 done, read = idle)
+    herdr_status = _herdr.statuses(found)
+    for s in found:
+        if s.state != "done":
             continue
-        for s in found:
-            if s.state == "done" and s.mtime <= max(acks.get(s.key, 0.0), baseline):
-                s.seen = True
-            if s.agent not in latest or s.mtime > latest[s.agent].mtime:
-                latest[s.agent] = s
-            if now - s.mtime > LOOKBACK_SEC and not s.is_running:
-                continue
-            if s.is_running or s.is_waiting or now - s.mtime < RECENT_SEC:
-                out.append(s)
+        acked = s.mtime <= acks.get(s.key, 0.0)
+        st = herdr_status.get(s.key)
+        if st == "unread":
+            s.seen = acked
+        elif st in ("read", "idle") or acked or s.mtime <= baseline:
+            s.seen = True
+
+    out = []
+    latest: dict[str, AgentSession] = {}  # 에이전트별 가장 최근 세션
+    for s in found:
+        if s.agent not in latest or s.mtime > latest[s.agent].mtime:
+            latest[s.agent] = s
+        if now - s.mtime > LOOKBACK_SEC and not s.is_running:
+            continue
+        if s.is_running or s.is_waiting or now - s.mtime < RECENT_SEC:
+            out.append(s)
     # 모든 에이전트가 덱에 항상 보이도록, 목록에 없는 에이전트는 마지막 세션을 남긴다
     shown = {s.agent for s in out}
     out += [s for a, s in latest.items() if a not in shown]
